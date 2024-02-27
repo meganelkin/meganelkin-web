@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Megan's Leaflet Exercise</title>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.4.0/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.4.0/dist/leaflet.js"></script>
+    <script src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
+    <script src="./p5.min.js"></script>
+</head>
+
+<body>
+    <div id="mapid" style="width: 700px; height: 600px;"></div>
+
+    <script>
+        var map = L.map('mapid',
+            {
+                center: [49.257, -123.25],
+                zoom: 14
+            }
+        );
+
+        var esriCanvasTiles = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
+            attribution: 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ',
+            maxZoom: 16
+        }).addTo(map);
+
+
+        // Land Use Data (from UBC GitHub)   
+        function styleLandUse(feature) {
+            var neighborhoodName = feature.properties.NAME;
+            var fillColor;
+
+            // Assign a color based on neighborhood name
+            switch (neighborhoodName) {
+                case 'East Campus':
+                    fillColor = 'blue';
+                    break;
+                case 'Acadia East':
+                    fillColor = 'red';
+                    break;
+                case 'Hampton Place':
+                    fillColor = 'green';
+                    break;
+                case 'University Blvd':
+                    fillColor = 'orange';
+                    break;
+                case 'Wesbrook Place':
+                    fillColor = 'purple';
+                    break;
+                case 'Stadium Road':
+                    fillColor = 'yellow';
+                    break;
+                case 'Chancellor Place':
+                    fillColor = 'cyan';
+                    break;
+                case 'Academic':
+                    fillColor = 'magenta';
+                    break;
+                case 'Hawthorn Place':
+                    fillColor = 'brown';
+                    break;
+
+                default:
+                    fillColor = 'gray'; 
+            }
+
+            return {
+                fillColor: fillColor,
+                weight: 1,
+                opacity: 1,
+                color: 'black',
+                dashArray: '10',
+                fillOpacity: 0.6
+            };
+        }
+
+        $.getJSON("https://raw.githubusercontent.com/UBCGeodata/ubc-geospatial-opendata/master/ubcv/planning/geojson/ubcv_landuse.geojson", function (landUseData) {
+            L.geoJSON(landUseData, {
+                style: styleLandUse,
+                onEachFeature: function (feature, layer) {
+                    layer.bindTooltip(feature.properties.NAME);
+                }
+            }).addTo(map);
+        });
+
+        // Make a Legend 
+        var legendContent = {
+            "East Campus": 'blue',
+            "Acadia East": 'red',
+            "Hampton Place": 'green',
+            "University Blvd": 'orange',
+            "Wesbrook Place": 'purple',
+            "Stadium Road": 'yellow',
+            "Chancellor Place": 'cyan',
+            "Academic": 'magenta',
+            "Hawthorn Place": 'brown'
+        };
+
+        var legend = L.control({ position: 'bottomleft' });
+
+        legend.onAdd = function (map) {
+            var div = L.DomUtil.create('div', 'legend');
+            div.innerHTML += '<h4>UBC Neighborhoods</h4>';
+
+            for (var neighborhood in legendContent) {
+                var color = legendContent[neighborhood];
+                div.innerHTML += '<i style="background:' + color + '"></i> <span style="color:' + color + '">&#9679;</span> ' + neighborhood + '<br>';
+            }
+
+            return div;
+        };
+
+        legend.addTo(map);
+
+    </script>
+</body>
+
+</html>
