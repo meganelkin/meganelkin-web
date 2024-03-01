@@ -258,16 +258,16 @@
 `;
 
             const popup = new mapboxgl.Popup({
-                maxWidth: '600px', // Set your desired maximum width
-                anchor: 'center', // Set the anchor point to center
+                maxWidth: '600px', 
+                anchor: 'center', 
             })
-                .setLngLat(map.getCenter()) // Set the popup to the center of the map
+                .setLngLat(map.getCenter()) 
                 .setHTML(popupContent)
                 .addTo(map);
 
             const popupNode = popup.getElement();
             if (popupNode) {
-                popupNode.style.zIndex = '1000'; // You can adjust the value as needed
+                popupNode.style.zIndex = '1000';
             }
 
 
