@@ -271,7 +271,7 @@
             }
 
 
-            const response = await fetch('https://meganelkin.github.io/meganelkin-web/Lab1/map.geojson');
+            const response = await fetch('https://raw.githubusercontent.com/meganelkin/meganelkin-web/Lab1/map.geojson');
             originalData = await response.json();
 
             originalData.features.forEach((feature, index) => {
