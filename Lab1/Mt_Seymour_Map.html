@@ -150,15 +150,11 @@
 
         .mapboxgl-popup {
             background-color: rgba(255, 255, 255, 0.9);
-            /* Adjust the alpha value as needed */
             padding: 1px;
-            /* Add padding for better aesthetics */
         }
 
-        /* Custom styles for the popup content */
         .mapboxgl-popup-content {
             background-color: transparent;
-            /* Set the content background to transparent */
         }
     </style>
 </head>
@@ -233,7 +229,6 @@
         let originalData;
 
         map.on('load', async () => {
-            // Show popup when the page loads
             const popupContent = `
     <h2 style="text-align:center;font-family: Gill Sans"> Welcome to Mt Seymour!</h2>
     <p style="font-family: Gill Sans"> Welcome to the heart-pounding world of mountain biking at Mt Seymour! As you embark on your two-wheeled
@@ -344,25 +339,21 @@
             const trailName = lineData.properties.Name;
             const trailLevel = lineData.properties.Level;
 
-            // Clear previous animation, if any
             clearInterval(animationTimer);
 
             let i = 0;
             animationTimer = setInterval(() => {
                 if (i < coordinates.length) {
                     lineData.geometry.coordinates = coordinates.slice(0, i + 1);
-
-                    // Set the trail name and symbol as the title during the animation
+                    
                     document.getElementById('title').innerHTML = `
                 <h1>${trailName} ${getTrailSymbolHTML(trailLevel)}</h1>
             `;
 
-                    // Center the title at the top of the page
                     document.getElementById('title').style.top = '10%';
                     document.getElementById('title').style.left = '50%';
                     document.getElementById('title').style.transform = 'translateX(-50%)';
-
-                    // Zoom into the current coordinate
+                    
                     map.flyTo({
                         center: coordinates[i],
                         pitch: 45,
@@ -383,7 +374,6 @@
             }, 15);
         }
 
-        // Function to get HTML for trail symbols based on level
         function getTrailSymbolHTML(level) {
             switch (level) {
                 case 1:
@@ -399,7 +389,6 @@
             }
         }
 
-        // Declare animationTimer outside the function to avoid scoping issues
         let animationTimer;
 
         map.on('click', function () {
@@ -407,7 +396,7 @@
         });
 
         function resetView() {
-            // Reset the view
+
             map.flyTo({
                 center: [-122.980147, 49.3300000],
                 pitch: 80,
@@ -416,17 +405,16 @@
                 essential: true
             });
 
-            // Show all lines
+
             map.getSource('trace').setData(originalData);
 
-            // Reset the filter to show all levels
+
             map.setFilter('trace', null);
 
             clearTitle();
         }
         function clearTitle() {
             document.getElementById('title').innerHTML = '';
-            // Reset title styles
             document.getElementById('title').style.top = '';
             document.getElementById('title').style.left = '';
             document.getElementById('title').style.transform = '';
