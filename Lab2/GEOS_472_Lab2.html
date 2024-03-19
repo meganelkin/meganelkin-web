@@ -256,7 +256,7 @@
 <body>
     <div id="popup-container">
         <div id="popup-content">
-            <img id="popup-img" src="BCMT_IMAGE.png" alt="Popup Image">
+            <img id="popup-img" src="./BCMT_IMAGE.png" alt="Popup Image">
             <p>Welcome to the BC Marine Trails Route Planning Map! This map is an extension of the BC Marine Trails Map: Click <a href="https://www.bcmarinetrails.org/map/">here</a> to view it. As always, the infromation presented
             here is intended to be as acurate as possible, however you must assume all risk by using it and its resources. Please enjoy the coast respectfully and responsibly!
             <br>This map adds a <strong>Route Planning Tool, Inforamtion About Each Location, and a Detailed Legend</strong>. Have fun exploring! </p>
@@ -398,7 +398,7 @@ I wanted the Title and Description to have different formating so I gave them se
         map.on('load', () => {
             map.addSource('BCMT', {
                 type: 'geojson',
-                data: 'map.geojson'
+                data: './map.geojson'
             });
 
             map.addLayer({
