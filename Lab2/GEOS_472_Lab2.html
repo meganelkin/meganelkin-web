@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html>
+
+<!--The head section is where I have imported all of the content needed (including Mapbox GL JS libraries, Turf.js, and CSS font styles).--> 
+<head>
+    <meta charset="utf-8">
+    <title>BC Marine Camping!</title>
+    <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+    <link href="https://api.mapbox.com/mapbox-gl-js/v3.2.0/mapbox-gl.css" rel="stylesheet">
+    <script src="https://api.mapbox.com/mapbox-gl-js/v3.2.0/mapbox-gl.js"></script>
+    <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
+    <script src="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-draw/v1.4.3/mapbox-gl-draw.js"></script>
+    <link rel="stylesheet" href="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-draw/v1.4.3/mapbox-gl-draw.css"
+        type="text/css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css"
+        integrity="sha512-OU9PfJIFR1Za9XhDxLB+oR32HZDCUQPqc7oC3olhja3pgGNSMvE/g9l3v4Id3K3uVuGpF+g8SmJC4G/X9AHpPw=="
+        crossorigin="anonymous" referrerpolicy="no-referrer" />
+
+    <!--//This next section outlines all my style choices on my map. I have made specific tags and IDs for each feature I wanted to have a different style!-->   
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Open Sans', sans-serif;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            position: relative;
+        }
+
+        #map {
+            flex: 1;
+        }
+
+        p {
+            margin: 0;
+            font-size: 13px;
+            line-height: 1.5;
+            color: #333;
+        }
+
+        button {
+            margin-top: 10px;
+            padding: 5px 10px;
+            border: none;
+            background-color: #0e5616;
+            color: white;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+
+        button:hover {
+            background-color: #a0c9b1;
+        }
+
+        .sidebar {
+            position: absolute;
+            top: 30px;
+            left: -320px;
+            width: 300px;
+            max-height: 60vh;
+            overflow-y: auto;
+            background-color: rgba(255, 255, 255, 0.9);
+            padding: 15px;
+            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            z-index: 1;
+            transition: left 0.3s ease;
+        }
+
+        .sidebar.open {
+            left: 10px;
+        }
+
+        .sidebar #popup-title {
+            font-weight: bold;
+            text-align: center;
+            font-size: 16px;
+            color: rgb(20, 67, 46);
+        }
+
+        .sidebar #popup-description {
+            text-align: center;
+            font-size: 12px;
+            color: rgb(121, 134, 121);
+        }
+
+        .calculation-box {
+            height: 100px;
+            width: 150px;
+            position: absolute;
+            bottom: 50px;
+            left: 40px;
+            padding: 15px;
+            background-color: rgba(255, 255, 255, 0.3);
+            text-align: center;
+        }
+
+
+        #draw-controls {
+            position: absolute;
+            bottom: 40px;
+            left: 170px;
+        }
+
+        p {
+            margin: 0;
+            font-size: 13px;
+        }
+
+        #draw-tool-text {
+            font-size: 10px;
+        }
+
+        #draw-tool-text-2 {
+            font-size: 9px;
+        }
+
+        #info-btn {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            z-index: 10;
+            background-color: #0e5616;
+            border: none;
+            cursor: pointer;
+            padding: 5px 10px;
+            border-radius: 5px;
+            color: white;
+
+        }
+
+        #info-btn:hover {
+            background-color: #a0c9b1;
+        }
+
+
+        .legend-item {
+            margin-bottom: 10px;
+        }
+
+        .legend-symbol {
+            display: inline-block;
+            width: 15px;
+            height: 15px;
+            margin-right: 5px;
+            vertical-align: middle;
+        }
+
+        .legend-item span {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 5px;
+        }
+
+        .legend-text {
+            font-size: 9px;
+        }
+
+        .legend-title {
+            font-weight: bold;
+            white-space: nowrap;
+            width: 50px;
+            height: 50px;
+        }
+
+        .legend-header {
+            text-align: center;
+        }
+
+        .map-overlay {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background-color: rgba(255, 255, 255, 0.8);
+            padding: 10px;
+            border-radius: 5px;
+            z-index: 1;
+            font-size: 11px;
+            max-width: 300px;
+        }
+
+        #calculated-distance {
+            font-size: 16px;
+            color: #333;
+            font-family: Arial, sans-serif;
+            font-weight: bold;
+            margin-top: 10px;
+            position: absolute;
+            top: -30px;
+            right: 0px;
+        }
+
+        #popup-container {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 9999;
+        }
+
+        #popup-content {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: white;
+            padding: 20px;
+            text-align: center;
+            border-radius: 10px;
+        }
+
+        #close-popup-btn {
+            margin-top: 20px;
+            padding: 10px 20px;
+            border: none;
+            background-color: #0e5616;
+            color: white;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+
+        #close-popup-btn:hover {
+            background-color: #a0c9b1;
+        }
+
+        .popup {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+            max-width: 40%;
+            z-index: 1000;
+        }
+        #popup-img {
+            max-width: 20%;
+            height: auto;
+            margin-bottom: 10px;
+        }
+
+    </style>
+</head>
+
+<!--The Body is where I have added all of my "items" to my map. This includes my Legend, Popup, Calculation Box, Sidebar, and Various Buttons!-->
+<!--The first item is my Popup which only shows up when the map is first loaded. I added text and an image to this.-->
+<body>
+    <div id="popup-container">
+        <div id="popup-content">
+            <img id="popup-img" src="BCMT_IMAGE.png" alt="Popup Image">
+            <p>Welcome to the BC Marine Trails Route Planning Map! This map is an extension of the BC Marine Trails Map: Click <a href="https://www.bcmarinetrails.org/map/">here</a> to view it. As always, the infromation presented
+            here is intended to be as acurate as possible, however you must assume all risk by using it and its resources. Please enjoy the coast respectfully and responsibly!
+            <br>This map adds a <strong>Route Planning Tool, Inforamtion About Each Location, and a Detailed Legend</strong>. Have fun exploring! </p>
+            <button id="close-popup-btn">Close</button>
+        </div>
+    </div>
+
+<!--Next, I added a calculation box, info boxes, and draw tool for my "Caluclate Distance Function". This was imported from Mapbox GL JS draw tool (see above). -->
+    <div id="map"></div>
+    <div class="calculation-box">
+        <p id="draw-tool-text"><strong>Click here to start the Route Planning Tool!</strong></p>
+        <p id="draw-tool-text-2">1.Click on the map to draw a line. <br>2.Double-click to end your line (and find out
+            its distance)!</p>
+        <div id="calculated-distance"></div>
+        <div class="draw-buttons">
+            <button id="toggle-draw-btn">Open Draw Tool</button>
+            <button id="reset-line-btn" style="display: none;">Reset Line</button>
+        </div>
+    </div>
+    <div id="distance-display">
+        <p id="calculated-distance"></p>
+    </div>
+
+<!--Here I added a sidebar which stored all the information about the campsites. This sidebar will be updates when the user clicks on a point on my map.
+I wanted the Title and Description to have different formating so I gave them seperate IDs. The rest of the informaiton is dynamically updated and dispalyed under each heading. -->
+    <div class="sidebar" id="sidebar">
+        <p id="popup-title" class="sidebar-title"></p>
+        <p id="popup-description" class="sidebar-description"></p>
+        <p><strong>Landing Comments:</strong> <span id="popup-landing-comments"></span></p>
+        <p><strong>Camp Comments:</strong> <span id="popup-camp-comments"></span></p>
+        <p><strong>Other Comments:</strong> <span id="popup-other-comments"></span></p>
+        <p><strong>Tent Sites Count:</strong> <span id="popup-tent-sites-count"></span></p>
+        <p><strong>First Nations Info:</strong> <span id="popup-first-nations-info"></span></p>
+    </div>
+
+    <!--The following outlines the Legend. I added a title, text info, and symbok for each cmapsite type. -->
+    <div class="map-overlay">
+        <div class="legend-header">
+            <h3>Legend</h3>
+        </div>
+        <div class="legend-item">
+            <span class="legend-symbol" style="background-color: blue;"></span>
+            <span class="legend-title">Campsite</span>
+            <p class="legend-text">Public access and camping regulated, permitted for foreseeable future. (example:
+                Zorro Bay Ts’itpsm is a
+                recreation site created by BC Marine Trails and currently maintained by the Sea Kayak Association of
+                BC).</p>
+        </div>
+        <div class="legend-item">
+            <span class="legend-symbol" style="background-color: orange;"></span>
+            <span class="legend-title">Informal Site</span>
+            <p class="legend-text">Visited by paddlers, other boaters. Assessed by BC Marine Trails. Currently on public
+                land. Consultations
+                with First Nations as to its suitability are planned or in process. Do not disturb soils or remove
+                anything but waste.</p>
+        </div>
+        <div class="legend-item">
+            <span class="legend-symbol" style="background-color: purple;"></span>
+            <span class="legend-title">Dispersed Site</span>
+            <p class="legend-text">Visited by paddlers, other boaters. Assessed by BC Marine Trails. Currently on
+                regulated public land
+                where dispersed public camping is permitted (example: a BC Parks location where dispersed wilderness
+                camping is permitted).</p>
+        </div>
+        <div class="legend-item">
+            <span class="legend-symbol" style="background-color: green;"></span>
+            <span class="legend-title">Launch Site</span>
+            <p class="legend-text">Use of public foreshore permitted. Upland public vehicle access is regulated,
+                permitted for foreseeable
+                future.</p>
+        </div>
+        <div class="legend-item">
+            <span class="legend-symbol" style="background-color: black;"></span>
+            <span class="legend-title">Emergency Pullout</span>
+            <p class="legend-text">Landing assessed by BC Marine Trails. For emergency use only. Private upland and/or
+                restrictions at the
+                request of First Nations.</p>
+        </div>
+        <div class="legend-item">
+            <span class="legend-symbol" style="background-color: red;"></span>
+            <span class="legend-title">Private or Commercial</span>
+            <p class="legend-text">Long term availability uncertain.</p>
+        </div>
+        <div class="legend-item">
+            <span class="legend-symbol" style="background-color: cyan;"></span>
+            <span class="legend-title">Day Use</span>
+            <p class="legend-text">Use of public foreshore permitted. Any upland public access regulated, permitted for
+                foreseeable future.
+                Camping not permitted nor practical.</p>
+        </div>
+        <div class="legend-item">
+            <span class="legend-symbol" style="background-color: gray;"></span>
+            <span class="legend-title">Closed Site</span>
+            <p class="legend-text">Public access and camping not permissible. Updated circumstances have resulted in the
+                closure of a site.
+                Additional information regarding the closure is available in the site pop-up. Please note, sites are
+                marked closed when we receive a request from a rights holder to remove the site from public view in
+                order to best communicate up to date information.</p>
+        </div>
+    </div>
+
+    <button id="info-btn">Info</button>
+
+    <!--The following script outlines the functions used in my interactive map. I first started by loading a map with a style I created in mapbox.
+    I wanted it centred over Vancouver Island and I made sure the user cannot zoom-out any further.-->
+    <script>
+        mapboxgl.accessToken = 'pk.eyJ1IjoibWFlbGtpbiIsImEiOiJja3BlamtjNnkwODJuMnVzMzZkaHYyN2M2In0._SJVPddIuR_dS8co5w2odw';
+        const map = new mapboxgl.Map({
+            container: 'map',
+            style: 'mapbox://styles/maelkin/cltdwpoam00qp01pth06p6def',
+            zoom: 5,
+            center: [-125.5, 51.2],
+            minZoom: 5
+        });
+
+        // Show the popup when the page is loaded 
+        document.addEventListener("DOMContentLoaded", function () {
+            document.getElementById("popup-container").style.display = "block";
+
+            // Close the popup when the close button is clicked
+            document.getElementById("close-popup-btn").addEventListener("click", function () {
+                document.getElementById("popup-container").style.display = "none";
+            });
+        });
+
+        // Define variables to use later in functions
+        let draw;
+        const toggleDrawButton = document.getElementById('toggle-draw-btn');
+        const resetLineButton = document.getElementById('reset-line-btn');
+        const popupTitle = document.getElementById('popup-title');
+        const popupDescription = document.getElementById('popup-description');
+        const popupLandingComments = document.getElementById('popup-landing-comments');
+        const popupCampComments = document.getElementById('popup-camp-comments');
+        const popupTentSitesCount = document.getElementById('popup-tent-sites-count');
+        const popupFirstNationsInfo = document.getElementById('popup-first-nations-info');
+        const calculatedDistance = document.getElementById('calculated-distance');
+
+        // adding BCMT (point data) to the map and giving them a different colour based on thier "description" field
+        map.on('load', () => {
+            map.addSource('BCMT', {
+                type: 'geojson',
+                data: 'map.geojson'
+            });
+
+            map.addLayer({
+                'id': 'points',
+                'type': 'circle',
+                'source': 'BCMT',
+                'paint': {
+                    'circle-radius': 5,
+                    'circle-stroke-width': 1,
+                    'circle-color': [
+                        'match',
+                        ['get', 'description'],
+                        'Campsite primary', 'blue',
+                        'Campsite secondary', 'blue',
+                        'Informal site secondary', 'orange',
+                        'Informal site primary', 'orange',
+                        'Dispersed site primary', 'purple',
+                        'Dispersed site secondary', 'purple',
+                        'Launch Site', 'green',
+                        'Emergency Pullout', 'black',
+                        'Private or Commercial', 'red',
+                        'Day Use', 'cyan',
+                        'Closed Site', 'black',
+                        'black'
+                    ],
+                    'circle-stroke-color': 'white'
+                }
+
+
+            });
+
+            // This next function creates a "new point" ontop the old one if it is clicked. This is to make the point appear to be highlighted when the user clicks on it. 
+            let clickedPointLayerId; // Variable to store the layer ID of the clicked point
+
+            map.on('click', 'points', (e) => {
+                const properties = e.features[0].properties;
+                popupTitle.textContent = properties.title;
+                popupDescription.textContent = properties.description;
+                popupLandingComments.textContent = properties.landing_comments;
+                popupCampComments.textContent = properties.camp_comments;
+                popupTentSitesCount.textContent = properties.tent_sites_count;
+                popupFirstNationsInfo.textContent = properties.first_nations_info;
+
+
+
+                const coordinates = e.features[0].geometry.coordinates;
+
+                // Remove previously added point if exists
+                if (clickedPointLayerId && map.getLayer(clickedPointLayerId)) {
+                    map.removeLayer(clickedPointLayerId);
+                    map.removeSource(clickedPointLayerId);
+                }
+
+                // Add a new point on top of the clicked point
+                clickedPointLayerId = 'clicked-point-' + Math.random().toString(36).substr(2, 9); // Generate a unique layer ID
+                map.addSource(clickedPointLayerId, {
+                    type: 'geojson',
+                    data: {
+                        type: 'FeatureCollection',
+                        features: [{
+                            type: 'Feature',
+                            geometry: {
+                                type: 'Point',
+                                coordinates: coordinates
+                            }
+                        }]
+                    }
+                });
+
+                map.addLayer({
+                    'id': clickedPointLayerId,
+                    'type': 'circle',
+                    'source': clickedPointLayerId,
+                    'paint': {
+                        'circle-radius': 8,
+                        'circle-stroke-width': 2,
+                        'circle-color': 'yellow',
+                        'circle-stroke-color': 'white'
+                    }
+                });
+            });
+
+            // This next part outlines the "draw tool" or the Route Planning tool! First, I added some dynamic text to the tool that will be hidden and visible at different clicks: 
+            const drawToolText = document.getElementById('draw-tool-text');
+            const drawToolText2 = document.getElementById('draw-tool-text-2');
+            const toggleDrawButton = document.getElementById('toggle-draw-btn');
+
+            drawToolText2.style.display = 'none';
+
+            // Add event listener to toggle draw button
+            toggleDrawButton.addEventListener('click', function () {
+                if (!draw) {
+
+                    drawToolText.style.display = 'block';
+                    drawToolText2.style.display = 'none'; // Hide the text
+
+                } else {
+                    // Draw tool is being disabled
+                    drawToolText.style.display = 'none';
+                    drawToolText2.style.display = 'block' // Show the text
+            
+                }
+            });
+
+            map.on('mouseenter', 'points', () => {
+                map.getCanvas().style.cursor = 'pointer';
+            });
+
+            map.on('mouseleave', 'points', () => {
+                map.getCanvas().style.cursor = '';
+            });
+        });
+
+        //This last section shows the Calculate Disatnce/Route Planning tool 
+        toggleDrawButton.addEventListener('click', function () {
+            if (!draw) {
+                draw = new MapboxDraw({
+                    displayControlsDefault: false,
+                    controls: {
+                        line_string: true,
+                        trash: true
+                    },
+                    defaultMode: 'draw_line_string',
+                    styles: [
+                        // Style for the line
+                        {
+                            "id": "gl-draw-line",
+                            "type": "line",
+                            "filter": ["all", ["==", "$type", "LineString"], ["!=", "mode", "static"]],
+                            "layout": {
+                                "line-cap": "round",
+                                "line-join": "round"
+                            },
+                            "paint": {
+                                "line-color": "#0e5616",
+                                "line-dasharray": [0.2, 2],
+                                "line-width": 2,
+                                "line-opacity": 0.7
+                            }
+                        }
+                    ]
+
+                });
+                map.addControl(draw, 'bottom-left');
+                toggleDrawButton.textContent = 'Close Draw Tool';
+                resetLineButton.style.display = 'inline-block';
+
+                // Add event listener to draw update
+                map.on('draw.create', updateDistance);
+                map.on('draw.delete', updateDistance);
+                map.on('draw.update', updateDistance);
+            } else {
+                map.removeControl(draw);
+                draw = null;
+                toggleDrawButton.textContent = 'Open Draw Tool';
+                resetLineButton.style.display = 'none';
+                calculatedDistance.innerHTML = '';
+            }
+        });
+
+        // Function to reset the drawn line
+        resetLineButton.addEventListener('click', function () {
+            if (draw) {
+                draw.deleteAll();
+                updateDistance(); // Update distance after resetting the line
+                // Activate draw mode after resetting
+                draw.changeMode('draw_line_string');
+            }
+        });
+
+        // Function to update distance
+        function updateDistance() {
+            const data = draw.getAll();
+            const answer = document.getElementById('calculated-distance');
+            if (data.features.length > 0) {
+                const length = turf.length(data, { units: 'kilometers' });
+                const rounded_distance = Math.round(length * 100) / 100;
+                answer.textContent = `Distance: ${rounded_distance} km`;
+            } else {
+                answer.textContent = ''; // Clear the distance if no line is drawn
+            }
+        }
+
+
+        const infoButton = document.getElementById('info-btn');
+        const sidebar = document.getElementById('sidebar');
+
+        // Function to toggle the sidebar and update the info button text
+        function toggleSidebar() {
+            if (sidebar.classList.contains('open')) {
+                sidebar.classList.remove('open');
+                infoButton.textContent = 'Click for Site Info';
+            } else {
+                sidebar.classList.add('open');
+                infoButton.textContent = 'Hide Info';
+            }
+        }
+        // Set initial text content of info button based on initial state of sidebar
+        infoButton.textContent = sidebar.classList.contains('open') ? 'Hide Info' : 'Click for Site Info';
+
+        infoButton.addEventListener('click', toggleSidebar);
+
+
+
+
+    </script>
+</body>
+
+</html>
