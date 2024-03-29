@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PLAN 221</title>
+    <link href='https://api.mapbox.com/mapbox-gl-js/v3.1.0/mapbox-gl.css' rel='stylesheet' />
+    <script src='https://api.mapbox.com/mapbox-gl-js/v3.1.0/mapbox-gl.js'></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+        }
+
+        #map {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 100%;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="map"></div>
+
+    <script>
+        mapboxgl.accessToken = 'pk.eyJ1IjoibWFlbGtpbiIsImEiOiJja3BlamtjNnkwODJuMnVzMzZkaHYyN2M2In0._SJVPddIuR_dS8co5w2odw';
+
+        var map = new mapboxgl.Map({
+            container: 'map',
+            style: 'mapbox://styles/maelkin/cltxubt5a01tm01oia6rt7xjg',
+            center: [-123.188576, 49.269182],
+            zoom: 11.5,
+        });
+
+        // Declare animationTimer outside the function to avoid scoping issues
+        let animationTimer;
+
+        function animateSymbolAlongLine(coordinates) {
+            let i = 0;
+            const duration = 104 * 1000; // Total duration of animation in milliseconds
+            const numPoints = 1000; // Number of points to animate
+
+            const interval = duration / numPoints;
+
+            animationTimer = setInterval(() => {
+                if (i < numPoints) {
+                    const progress = i / numPoints;
+                    const index = Math.floor(progress * coordinates.length);
+
+                    const lng = coordinates[index][0];
+                    const lat = coordinates[index][1];
+
+                    map.getSource('streak-source').setData({
+                        type: 'Feature',
+                        geometry: {
+                            type: 'Point',
+                            coordinates: [lng, lat]
+                        }
+                    });
+
+                    i++;
+                } else {
+                    clearInterval(animationTimer);
+                }
+            }, interval);
+        }
+
+        // Load GeoJSON data asynchronously
+        map.on('load', function () {
+            fetch('UBC.geojson')
+                .then(response => response.json())
+                .then(data => {
+                    // Add GeoJSON source with initial Point feature
+                    map.addSource('streak-source', {
+                        type: 'geojson',
+                        data: { type: 'Feature', geometry: { type: 'Point', coordinates: data.features[0].geometry.coordinates[0] } }
+                    });
+
+                    // Add streak layer as symbol layer
+                    map.addLayer({
+                        id: 'streak-layer',
+                        type: 'symbol',
+                        source: 'streak-source',
+                        layout: {
+                            'icon-image': 'bicycle', // Use a bicycle icon
+                            'icon-size': 2.5 // Adjust the size of the icon
+                        }
+                    });
+
+                    // Start the animation when the map loads
+                    animateSymbolAlongLine(data.features[0].geometry.coordinates);
+                });
+        });
+    </script>
+
+</body>
+
+</html>
+
+

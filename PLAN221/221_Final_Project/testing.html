@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PLAN 221</title>
+    <link href='https://api.mapbox.com/mapbox-gl-js/v3.1.0/mapbox-gl.css' rel='stylesheet' />
+    <script src='https://api.mapbox.com/mapbox-gl-js/v3.1.0/mapbox-gl.js'></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+        }
+
+        #map {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 100%;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="map"></div>
+
+    <script>
+        mapboxgl.accessToken = 'pk.eyJ1IjoibWFlbGtpbiIsImEiOiJja3BlamtjNnkwODJuMnVzMzZkaHYyN2M2In0._SJVPddIuR_dS8co5w2odw';
+
+        var map = new mapboxgl.Map({
+            container: 'map',
+            style: 'mapbox://styles/maelkin/clthutckr00yr01oi2gy4e1sp',
+            center: [-123.1216, 49.23],
+            zoom: 9.3,
+            minZoom: 9.3,
+            maxZoom: 9.3
+        });
+
+        let animationTimer;
+
+        function animateStreak(coordinates, callback) {
+            const streakData = {
+                type: 'Feature',
+                geometry: { type: 'LineString', coordinates: [] },
+                properties: { 'stroke-opacity': [] }
+            };
+            const fixedLength = 3;
+
+            let i = 0;
+            animationTimer = setInterval(() => {
+                if (i < coordinates.length) {
+                    const startIdx = Math.max(0, i - fixedLength);
+                    streakData.geometry.coordinates = coordinates.slice(startIdx, i + 1);
+
+                    const opacityStep = 1 / fixedLength;
+                    streakData.properties['stroke-opacity'] = Array.from({ length: fixedLength }, (_, index) =>
+                        Math.max(0, 1 - (fixedLength - index - 1) * opacityStep)
+                    );
+
+                    map.getSource('streak-source').setData({
+                        type: 'FeatureCollection',
+                        features: [streakData]
+                    });
+
+                    i++;
+                } else {
+                    clearInterval(animationTimer);
+                    callback();
+                }
+            }, 20);
+        }
+
+        map.on('load', function () {
+            fetch('map.geojson')
+                .then(response => response.json())
+                .then(data => {
+                    map.addSource('streak-source', {
+                        type: 'geojson',
+                        data: { type: 'FeatureCollection', features: [] }
+                    });
+
+                    map.addLayer({
+                        id: 'streak-layer',
+                        type: 'line',
+                        source: 'streak-source',
+                        layout: {
+                            'line-join': 'round',
+                            'line-cap': 'round'
+                        },
+                        paint: {
+                            'line-color': '#009cc3',
+                            'line-width': 5,
+                            'line-opacity': ['get', 'stroke-opacity']
+                        }
+                    });
+
+                    function animateSegments(index) {
+                        if (index < data.features.length) {
+                            animateStreak(data.features[index].geometry.coordinates, () => {
+                                setTimeout(() => animateSegments(index + 1), 10);
+                            });
+                        } else {
+                            // Restart the animation loop
+                            setTimeout(() => animateSegments(0), 10);
+                        }
+                    }
+
+                    animateSegments(0);
+                });
+        });
+    </script>
+
+
+</body>
+
+</html>

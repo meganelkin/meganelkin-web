@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PLAN 221</title>
+    <link href='https://api.mapbox.com/mapbox-gl-js/v3.1.0/mapbox-gl.css' rel='stylesheet' />
+    <script src='https://api.mapbox.com/mapbox-gl-js/v3.1.0/mapbox-gl.js'></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+        }
+
+        #map {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 100%;
+        }
+
+        .map-buttons {
+            position: absolute;
+            top: 20px;
+            /* Adjust as needed */
+            left: 20px;
+            /* Adjust as needed */
+            z-index: 1;
+            /* Ensure buttons appear above the map */
+        }
+
+        .map-button {
+            display: block;
+            width: 40px;
+            /* Adjust size of buttons */
+            height: 40px;
+            /* Adjust size of buttons */
+            border: 2px solid white;
+            /* White stroke color */
+            background-color: lightblue;
+            /* Light blue background color */
+            border-radius: 50%;
+            /* Circular shape */
+            margin-bottom: 10px;
+            /* Adjust spacing between buttons */
+            cursor: pointer;
+            outline: none;
+            /* Remove default button outline */
+            color: white;
+            /* Text color */
+            font-weight: bold;
+            font-size: 12pt;
+            /* Bold text */
+        }
+
+        #sidebar {
+            position: absolute;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            width: 25%;
+            background-color: white;
+            transition: transform 0.3s ease-in-out;
+            padding: 20px;
+            z-index: 1000;
+            transform: translateX(-100%);
+            font-family: 'Verdana', sans-serif;
+            
+        }
+
+        #text-box {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            width: 200px;
+            padding: 5px 10px;
+            border: 2px solid lightblue;
+            border-radius: 5px;
+            text-align: center;
+            background-image: url('./Megan.jpg');
+            background-size: cover;
+            background-position: center;
+            background-color: rgba(255, 255, 255, 0.7);
+            color: white;
+            font-family: 'Verdana', sans-serif;
+
+        }
+
+        .overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255, 255, 255, 0.6);
+            /* Adjust alpha (0.7 for 70% opacity) */
+            z-index: 1;
+            /* Ensure the overlay is on top of the image */
+        }
+
+        #text-box h3,
+        #text-box p {
+            color: black;
+            position: relative;
+            z-index: 2;
+            /* Change text color to black */
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="map"></div>
+    <div id="sidebar"></div>
+    <div id="text-box">
+        <h3>Megan's Bike Adventures!</h3>
+        <p>Follow me on my bike rides in the Vancouver area in 2023. </p>
+        <p>Click the buttons for more information! </p>
+        <div class="overlay"></div>
+    </div>
+
+
+    <script>
+        mapboxgl.accessToken = 'pk.eyJ1IjoibWFlbGtpbiIsImEiOiJja3BlamtjNnkwODJuMnVzMzZkaHYyN2M2In0._SJVPddIuR_dS8co5w2odw';
+
+        var map = new mapboxgl.Map({
+            container: 'map',
+            style: 'mapbox://styles/maelkin/clthutckr00yr01oi2gy4e1sp',
+            center: [-123.2, 49.23],
+            zoom: 9.3,
+            minZoom: 9.3,
+            maxZoom: 9.3,
+            scrollZoom: false, // Disables scroll zoom
+            dragPan: false // Disables drag panning
+        });
+
+
+        let animationTimer;
+
+        function animateStreak(coordinates, callback) {
+            const streakData = {
+                type: 'Feature',
+                geometry: { type: 'LineString', coordinates: [] },
+                properties: { 'stroke-opacity': [] }
+            };
+            const fixedLength = 3;
+
+            let i = 0;
+            animationTimer = setInterval(() => {
+                if (i < coordinates.length) {
+                    const startIdx = Math.max(0, i - fixedLength);
+                    streakData.geometry.coordinates = coordinates.slice(startIdx, i + 1);
+
+                    const opacityStep = 1 / fixedLength;
+                    streakData.properties['stroke-opacity'] = Array.from({ length: fixedLength }, (_, index) =>
+                        Math.max(0, 1 - (fixedLength - index - 1) * opacityStep)
+                    );
+
+                    map.getSource('streak-source').setData({
+                        type: 'FeatureCollection',
+                        features: [streakData]
+                    });
+
+                    i++;
+                } else {
+                    clearInterval(animationTimer);
+                    callback();
+                }
+            }, 20);
+        }
+
+        map.on('load', function () {
+            fetch('map.geojson')
+                .then(response => response.json())
+                .then(data => {
+                    map.addSource('streak-source', {
+                        type: 'geojson',
+                        data: { type: 'FeatureCollection', features: [] }
+                    });
+
+                    map.addLayer({
+                        id: 'streak-layer',
+                        type: 'line',
+                        source: 'streak-source',
+                        layout: {
+                            'line-join': 'round',
+                            'line-cap': 'round'
+                        },
+                        paint: {
+                            'line-color': '#009cc3',
+                            'line-width': 5,
+                            'line-opacity': ['get', 'stroke-opacity']
+                        }
+                    });
+
+                    function animateSegments(index) {
+                        if (index < data.features.length) {
+                            animateStreak(data.features[index].geometry.coordinates, () => {
+                                setTimeout(() => animateSegments(index + 1), 10);
+                            });
+                        } else {
+                            // Restart the animation loop
+                            setTimeout(() => animateSegments(0), 10);
+                        }
+                    }
+
+                    animateSegments(0);
+                });
+        });
+
+
+        map.on('load', function () {
+            // Assuming you have your GeoJSON data for bike routes stored in 'bikeRoutesGeoJSON'
+            map.addSource('bike-routes', {
+                type: 'geojson',
+                data: 'BikeID.geojson'
+            });
+
+            // Add a layer for bike routes
+            map.addLayer({
+                id: 'bike-routes-layer',
+                type: 'line',
+                source: 'bike-routes',
+                paint: {
+                    'line-color': 'lightblue',
+                    'line-width': 4
+                },
+                layout: {
+                    'line-join': 'round',
+                    'line-cap': 'round'
+                },
+                filter: ['==', 'ID', ''] // Initially filter to no features
+            });
+        });
+
+        function toggleLineVisibility(segmentId) {
+            const layerId = 'bike-routes-layer'; // Layer ID for the bike routes
+            const visibility = map.getLayoutProperty(layerId, 'visibility');
+            if (visibility === 'none') {
+                map.setLayoutProperty(layerId, 'visibility', 'visible');
+                map.setFilter(layerId, ['==', 'ID', segmentId]);
+            } else {
+                map.setLayoutProperty(layerId, 'visibility', 'none');
+                map.setFilter(layerId, null);
+            }
+        }
+
+        const buttonCoordinates = [
+            { lat: 49.371317, lng: -122.952904 },
+            { lat: 49.3, lng: -123.33 },
+            { lat: 49.372220, lng: -123.129668 },
+            { lat: 49.248466, lng: -123.046123 },
+            { lat: 49.119829, lng: -123.234446 }
+        ];
+
+        const sidebarContents = [
+            '<h3>The Seymour Dam</h3><p class="popup-content">One of my longest rides in 2023 was to the Seymour Dam! This ride hugs the Seymour River along a mix of Gravel and Paved path.</p><img src="./Seymour_Profile.png" alt="Seymour Evelvation Profile" style="max-width: 100%; height: auto;"><p class="popup-content">Elevation Gain: <strong>1197m</strong></p><p class="popup-content">Elevation Loss: <strong>1151m</strong></p><p class="popup-content">Total Length: <strong>54km</strong></p><p class="popup-content">Rating: <strong>3 Burritos</strong> </p><img src="./Seymour_Photo.png" alt="Seymour River Ride" style="max-width: 100%; height: auto;">',
+            '<h3>Ride to School!</h3><p class="popup-content">This is my route to school from my house. Riding there and back around 3 times a week (in the sunshine of course).</p><img src="./School.png" alt="School Ride Evelvation Profile" style="max-width: 100%; height: auto;"><p class="popup-content">Elevation Gain: <strong>259m</strong></p><p class="popup-content">Elevation Loss: <strong>174m</strong></p><p class="popup-content">Total Length: <strong>13.1km</strong></p><p class="popup-content">Rating: <strong>4 Coffees</strong> </p><iframe width="100%" height="200S" src="https://www.youtube.com/embed/syGDV4XRLQ8" frameborder="0" allowfullscreen></iframe>',
+            '<h3>Horseshoe Bay Ride!</h3><p class="popup-content">Spent a sunny day biking along the water to Horseshoe Bay. This route is one of the most scenic rides in the Lowermainland.</p><img src="./Lighthouse.png" alt="Ferry Terminal Ride Evelvation Profile" style="max-width: 100%; height: auto;"><p class="popup-content">Elevation Gain: <strong>564m</strong></p><p class="popup-content">Elevation Loss: <strong>560m</strong></p><p class="popup-content">Total Length: <strong>26km</strong></p <p class="popup-content">Rating: <strong>2 Burritos</strong> </p><img src="./horseshoe.png" alt="Ride to Horseshoe Bay" style="max-width: 100%; height: auto;">',
+            '<h3>Stanley Park Loops</h3><p class="popup-content">I have looped around the trails in Stanley Park many times. Sometimes you just need to be in the trees.</p><img src="./Stanley_Park.png" alt="Stanley Park Evelvation Profile" style="max-width: 100%; height: auto;"><p class="popup-content">Elevation Gain: <strong>97m</strong></p><p class="popup-content">Elevation Loss: <strong>92m</strong></p><p class="popup-content">Total Length: <strong>12km</strong></p <p class="popup-content">Rating: <strong>1 Burrito</strong> </p><img src="./Stan_Park.png" alt="Park Trails" style="max-width: 100%; height: auto;">',
+            '<h3>Tsawwassen Bay Ferry Terminal</h3><p class="popup-content">The starting destination to my Gulf Island bikepacking adventures (not maped). Not the best ride...still waiting for the Massey Tunnel Bike Lane :(</p><img src="./Tswassen.png" alt="Delta Evelvation Profile" style="max-width: 100%; height: auto;"><p class="popup-content">Elevation Gain: <strong>96m</strong></p><p class="popup-content">Elevation Loss: <strong>92m</strong></p><p class="popup-content">Total Length: <strong>11.3km</strong></p <p class="popup-content">Rating: <strong>1 Coffee</strong> </p><img src="./T_Ferry.png" alt="Ferry Terminal" style="max-width: 100%; height: auto;">'
+        ];
+
+        buttonCoordinates.forEach((coord, index) => {
+            const button = document.createElement('button');
+            button.className = 'map-button';
+            button.innerHTML = index + 1;
+            const content = sidebarContents[index];
+            const segmentId = [6, 1, 5, 4, 12][index]; // Segment ID for each button
+            const coordinates = map.project([coord.lng, coord.lat]);
+            button.style.position = 'absolute';
+            button.style.left = coordinates.x + 'px';
+            button.style.top = coordinates.y + 'px';
+
+
+            button.addEventListener('click', function () {
+                const content = sidebarContents[index]; // Get content for the clicked button
+                const segmentId = [6, 1, 5, 4, 12][index]; // Segment ID for each button
+
+                // Toggle sidebar and route/line layer visibility simultaneously
+                toggleSidebarAndLineVisibility(content, segmentId);
+
+
+            });
+
+
+            function toggleSidebarAndLineVisibility(content, segmentId) {
+                const sidebar = document.getElementById('sidebar');
+                const isSidebarOpen = sidebar.style.transform === 'translateX(0%)';
+
+                const layerId = 'bike-routes-layer'; // Layer ID for the bike routes
+                const visibility = map.getLayoutProperty(layerId, 'visibility');
+                const isLayerVisible = visibility === 'visible';
+
+                if (!isSidebarOpen && !isLayerVisible) {
+                    // If both content and sidebar are hidden, show them
+                    sidebar.style.transform = 'translateX(0%)';
+                    sidebar.innerHTML = content;
+                    map.setLayoutProperty(layerId, 'visibility', 'visible');
+                    map.setFilter(layerId, ['==', 'ID', segmentId]); // Filter route/line layer
+                } else {
+                    // If both content and sidebar are visible, hide them
+                    sidebar.style.transform = 'translateX(-100%)';
+                    sidebar.innerHTML = '';
+                    map.setLayoutProperty(layerId, 'visibility', 'none');
+                }
+            }
+
+            document.getElementById('map').appendChild(button);
+        });
+
+        function toggleSidebar(content) {
+            const sidebar = document.getElementById('sidebar');
+            const isSidebarOpen = sidebar.style.transform === 'translateX(0%)';
+
+            if (isSidebarOpen) {
+                // If the sidebar is open, hide it
+                sidebar.style.transform = 'translateX(-100%)';
+                sidebar.innerHTML = ''; // Clear sidebar content
+            } else {
+                // If the sidebar is closed, show it and populate with content
+                sidebar.style.transform = 'translateX(0%)';
+                sidebar.innerHTML = content !== undefined ? content : sidebarContents[0];
+            }
+        }
+
+
+
+        function toggleLineVisibility(segmentId) {
+            const layerId = 'bike-routes-layer'; // Layer ID for the bike routes
+            const visibility = map.getLayoutProperty(layerId, 'visibility');
+            if (visibility === 'none') {
+                map.setLayoutProperty(layerId, 'visibility', 'visible');
+                map.setFilter(layerId, ['==', 'ID', segmentId]);
+            } else {
+                map.setLayoutProperty(layerId, 'visibility', 'none');
+                map.setFilter(layerId, null);
+            }
+        }
+
+
+        document.addEventListener('click', function (event) {
+            const sidebar = document.getElementById('sidebar');
+            const isSidebarOpen = sidebar.style.left === '0%';
+            const clickedOutsideSidebar = !event.target.closest('#sidebar');
+            if (isSidebarOpen && clickedOutsideSidebar) {
+                sidebar.style.left = '-80%';
+                sidebar.innerHTML = '';
+            }
+        });
+
+
+
+    </script>
+
+
+</body>
+
+</html>

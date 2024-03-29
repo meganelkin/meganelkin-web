@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PLAN 221</title>
+    <link href='https://api.mapbox.com/mapbox-gl-js/v3.1.0/mapbox-gl.css' rel='stylesheet' />
+    <script src='https://api.mapbox.com/mapbox-gl-js/v3.1.0/mapbox-gl.js'></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+        }
+
+        #map {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 100%;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="map"></div>
+
+    <script>
+        mapboxgl.accessToken = 'pk.eyJ1IjoibWFlbGtpbiIsImEiOiJja3BlamtjNnkwODJuMnVzMzZkaHYyN2M2In0._SJVPddIuR_dS8co5w2odw';
+
+        var map = new mapboxgl.Map({
+            container: 'map',
+            style: 'mapbox://styles/maelkin/clthutckr00yr01oi2gy4e1sp',
+            center: [-123.1216, 49.23],
+            zoom: 9.3,
+            minZoom: 9.3,
+            maxZoom: 12
+        });
+
+        // Declare animationTimers outside the function to avoid scoping issues
+        let pointAnimationTimer;
+        let geoJSONAnimationTimer;
+
+        function animatePoint(coordinates, cumulativeHistory, callback) {
+            const pointData = {
+                type: 'Feature',
+                geometry: { type: 'Point', coordinates: [] }
+            };
+
+            let i = 0;
+            pointAnimationTimer = setInterval(() => {
+                if (i < coordinates.length) {
+                    pointData.geometry.coordinates = coordinates[i];
+
+                    map.getSource('point-source').setData({
+                        type: 'FeatureCollection',
+                        features: [pointData]
+                    });
+
+                    i++;
+                } else {
+                    clearInterval(pointAnimationTimer);
+                    callback(); // Invoke the callback function when the point animation is complete
+                }
+            }, 200); // Adjust the interval as needed
+        }
+
+        function animateGeoJSON(coordinates, callback) {
+            const geoJSONData = {
+                type: 'Feature',
+                geometry: { type: 'LineString', coordinates: [] },
+                properties: {}
+            };
+
+            let i = 0;
+            geoJSONAnimationTimer = setInterval(() => {
+                if (i < coordinates.length) {
+                    geoJSONData.geometry.coordinates = coordinates.slice(0, i + 1);
+
+                    map.getSource('geojson-source').setData({
+                        type: 'FeatureCollection',
+                        features: [geoJSONData]
+                    });
+
+                    i++;
+                } else {
+                    clearInterval(geoJSONAnimationTimer);
+                    callback(); // Invoke the callback function when the GeoJSON animation is complete
+                }
+            }, 200); // Adjust the interval as needed
+        }
+
+        // Load GeoJSON data asynchronously
+        map.on('load', function () {
+            fetch('map.geojson')
+                .then(response => response.json())
+                .then(data => {
+                    // Add GeoJSON source for initial point animation
+                    map.addSource('point-source', {
+                        type: 'geojson',
+                        data: { type: 'FeatureCollection', features: [] }
+                    });
+
+                    // Add point layer
+                    map.addLayer({
+                        id: 'point-layer',
+                        type: 'circle',
+                        source: 'point-source',
+                        paint: {
+                            'circle-radius': 6,
+                            'circle-color': '#009cc3',
+                            'circle-opacity': 1
+                        }
+                    });
+
+                    // Add GeoJSON source for entire line animation
+                    map.addSource('geojson-source', {
+                        type: 'geojson',
+                        data: { type: 'FeatureCollection', features: [] }
+                    });
+
+                    // Add line layer
+                    map.addLayer({
+                        id: 'line-layer',
+                        type: 'line',
+                        source: 'geojson-source',
+                        layout: {
+                            'line-join': 'round',
+                            'line-cap': 'round'
+                        },
+                        paint: {
+                            'line-color': '#ff0000',
+                            'line-width': 2,
+                            'line-opacity': 0.5
+                        }
+                    });
+
+                    // Start both animations when the map loads
+                    animatePoint(data.features[0].geometry.coordinates, [], () => {
+                        animateGeoJSON(data.features[0].geometry.coordinates, () => {
+                            // Any additional actions after both animations are complete
+                            console.log('Animations complete!');
+                        });
+                    });
+                });
+        });
+    </script>
+
+</body>
+
+</html>

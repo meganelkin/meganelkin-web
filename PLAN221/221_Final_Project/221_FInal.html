@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PLAN 221</title>
+    <link href='https://api.mapbox.com/mapbox-gl-js/v3.1.0/mapbox-gl.css' rel='stylesheet' />
+    <script src='https://api.mapbox.com/mapbox-gl-js/v3.1.0/mapbox-gl.js'></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+        }
+
+        #map {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 100%;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="map"></div>
+
+    <script>
+        mapboxgl.accessToken = 'pk.eyJ1IjoibWFlbGtpbiIsImEiOiJja3BlamtjNnkwODJuMnVzMzZkaHYyN2M2In0._SJVPddIuR_dS8co5w2odw';
+
+        var map = new mapboxgl.Map({
+            container: 'map',
+            style: 'mapbox://styles/maelkin/clthutckr00yr01oi2gy4e1sp',
+            center: [-123.1216, 49.23],
+            zoom: 9.3,
+            minZoom: 9.3,
+            maxZoom: 12
+        });
+
+        // Load GeoJSON data asynchronously
+        map.on('load', function () {
+            fetch('map.geojson')
+                .then(response => response.json())
+                .then(data => {
+                    // Add GeoJSON source with initial LineString feature
+                    map.addSource('line-source', {
+                        type: 'geojson',
+                        data: data
+                    });
+
+                    // Add line layer
+                    map.addLayer({
+                        id: 'line-layer',
+                        type: 'line',
+                        source: 'line-source',
+                        layout: {
+                            'line-join': 'round',
+                            'line-cap': 'round'
+                        },
+                        paint: {
+                            'line-color': '#009cc3',
+                            'line-width': 3,
+                            'line-opacity': 0.8,
+                        }
+                    });
+
+                    // Add a line layer for ant path animation
+                    map.addLayer({
+                        type: 'line',
+                        source: 'line-source',
+                        id: 'line-ant',
+                        paint: {
+                            'line-color': '#58ddfe',
+                            'line-width': 3,
+                            'line-opacity': 0.8,
+                            'line-dasharray': [0, 4, 3]
+                        }
+                    });
+
+                    const dashArraySequence = [
+                        [0, 4, 3],
+                        [0.5, 4, 2.5],
+                        [1, 4, 2],
+                        [1.5, 4, 1.5],
+                        [2, 4, 1],
+                        [2.5, 4, 0.5],
+                        [3, 4, 0],
+                        [0, 0.5, 3, 3.5],
+                        [0, 1, 3, 3],
+                        [0, 1.5, 3, 2.5],
+                        [0, 2, 3, 2],
+                        [0, 2.5, 3, 1.5],
+                        [0, 3, 3, 1],
+                        [0, 3.5, 3, 0.5]
+                    ];
+
+                    let step = 0;
+
+                    function animateAntPath(timestamp) {
+                        // Update line-dasharray using the next value in dashArraySequence.
+                        const newStep = parseInt(
+                            (timestamp / 50) % dashArraySequence.length
+                        );
+
+                        if (newStep !== step) {
+                            map.setPaintProperty(
+                                'line-ant',
+                                'line-dasharray',
+                                dashArraySequence[step]
+                            );
+                            // Calculate opacity based on the position of the animated segment
+                            const opacity = Math.max(0, 1 - (newStep / dashArraySequence.length));
+
+                            // Set opacity
+                            map.setPaintProperty('line-ant', 'line-opacity', opacity);
+
+
+                            step = newStep;
+                        }
+
+                        // Request the next frame of the animation.
+                        requestAnimationFrame(animateAntPath);
+                    }
+
+                    // Start the ant path animation
+                    animateAntPath(0);
+                });
+        });
+    </script>
+
+</body>
+
+</html>
