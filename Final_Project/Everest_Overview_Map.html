@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset='utf-8' />
+    <title>Exploring Mt Everest</title>
+    <meta name='viewport' content='width=device-width, initial-scale=1' />
+    <script src='https://api.mapbox.com/mapbox-gl-js/v3.1.0/mapbox-gl.js'></script>
+    <link href='https://api.mapbox.com/mapbox-gl-js/v3.1.0/mapbox-gl.css' rel='stylesheet' />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
+    <script src='https://api.mapbox.com/mapbox.js/plugins/turf/v3.0.11/turf.min.js'></script>
+    <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Kalam:wght@300;400;700&family=Lato:ital,wght@0,100;0,300;0,400;0,700;0,900;1,100;1,300;1,400;1,700;1,900&display=swap"
+        rel="stylesheet">
+
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Kalam';
+            display: flex;
+        }
+
+        #map {
+            flex: 1;
+            position: relative;
+            height: 100vh;
+        }
+
+        .sidebar {
+            width: 350px;
+            background-color: white;
+            padding: 10px;
+            box-sizing: border-box;
+            position: fixed;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            overflow-y: auto;
+            z-index: 1000;
+            display: none;
+            z-index: 2;
+            text-align: center;
+            font-family: 'Kalam';
+            /* Initially hide the sidebar */
+        }
+
+        .console {
+            position: absolute;
+            width: 300px;
+            margin: 10px;
+            padding: 10px 20px;
+            background-image: url('./Back.png');
+            background-size: cover;
+            background-position: center;
+            border-radius: 15px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 2;
+        }
+
+        .console h3 {
+            font-weight: bold;
+            font-family: 'Kalam';
+            text-align: center;
+            z-index: 3;
+            /* Make the title bold */
+        }
+
+        .console p {
+            text-align: left;
+            font-family: 'Kalam';
+            font-size: 10pt;
+            z-index: 3;
+            /* Align other text to the left */
+        }
+
+        .reset-button {
+            position: relative;
+            top: 0px;
+            left: 0px;
+            width: 80px;
+            height: 50px;
+            background-color: #87CEEB;
+            cursor: pointer;
+            border: none;
+            border-radius: 5px;
+            transition: background-color 0.3s;
+            z-index: 3;
+        }
+
+        .reset-button:hover {
+            background-color: #6495ED;
+        }
+
+        .mapboxgl-popup {
+            max-width: 300px;
+        }
+
+        #marker-image {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            display: none;
+        }
+
+        #sidebar-image {
+            position: relative;
+            width: 275px;
+            height: 180px;
+            z-index: 3;
+
+        }
+
+        .session {
+            margin-bottom: 20px;
+        }
+
+        .row {
+            height: 12px;
+            width: 100%;
+        }
+
+        .colors {
+            background: linear-gradient(to right, #fafa6e, #fcd940, #feb608, #ff9000, #ff6100, #ff0000);
+            margin-bottom: 5px;
+        }
+
+
+
+        .label {
+            width: 15%;
+            display: inline-block;
+            text-align: center;
+            font-family: 'Kalam';
+        }
+
+        .info-text {
+            font-size: 10pt;
+            text-align: center;
+            font-family: 'Kalam';
+        }
+
+        .info2-text {
+            font-size: 10pt;
+            text-align: left;
+            font-family: 'Kalam';
+        }
+
+        .kalam-light {
+            font-family: "Kalam", cursive;
+            font-weight: 300;
+            font-style: normal;
+        }
+
+        .kalam-regular {
+            font-family: "Kalam", cursive;
+            font-weight: 400;
+            font-style: normal;
+        }
+
+        .kalam-bold {
+            font-family: "Kalam", cursive;
+            font-weight: 700;
+            font-style: normal;
+        }
+    </style>
+</head>
+
+<body>
+    <div id='map'></div>
+    <div id="sidebar" class="sidebar"></div>
+    <img id="marker-image" src="./Basecamp.png" alt="Everest Basecamp" width="200" height="auto">
+    <div class="console">
+        <h3>An Everest Expedition</h3>
+        <p>Welcome to the highest point on Planet Earth! This climb is considered a major acomplishment by most, however
+            the mountain faces significant challenges due to
+            climate change and human activity which are overlooked by most. Rising temperatures are accelerating glacier
+            melt, altering ecosystems
+            and vital water sources downstream. The mountain's increasing popularity as a tourist destination has led to
+            a surge in waste, including plastics and human waste, posing environmental hazards. Overcrowding during
+            climbing seasons raises safety concerns and strains resources, highlighting the need for sustainable
+            practices and international cooperation to preserve Everest's fragile ecosystem and cultural significance.
+        </p>
+        <p><strong>Click on the buttons to explore!</strong></p>
+        <button class="reset-button" onclick="resetMapView()">Reset View</button>
+    </div>
+
+    <script>
+        mapboxgl.accessToken = 'pk.eyJ1IjoibWFlbGtpbiIsImEiOiJja3BlamtjNnkwODJuMnVzMzZkaHYyN2M2In0._SJVPddIuR_dS8co5w2odw';
+
+        const map = new mapboxgl.Map({
+            container: 'map',
+            style: 'mapbox://styles/maelkin/clu8wsdzz00bv01q578vv1gcz',
+            center: [86.8809043, 27.9953304],
+            zoom: 13,
+            pitch: 75,
+            bearing: 100,
+        });
+
+        const infoPoints = [
+            { name: 'Information 1', coordinates: [86.852573, 28.002961], details: 'Information 1 details', showLayer: true },
+            { name: 'Information 2', coordinates: [86.871125, 27.999323], details: 'Information 2 details', showLayer: true },
+            { name: 'Information 3', coordinates: [86.915252, 27.972452], details: 'Information 3 details', showLayer: true },
+            { name: 'Information 4', coordinates: [86.925081, 27.987768], details: 'Information 4 details', showLayer: true }
+        ];
+
+        const sidebar = document.getElementById('sidebar');
+        const markerImage = document.getElementById('marker-image');
+
+        map.on('load', function () {
+
+            fetch('./Death_New.geojson')
+                .then(response => response.json())
+                .then(data => {
+                    var points = data;
+                    var features = data.features;
+                    var bbox = turf.bbox({ type: 'FeatureCollection', features: features });
+                    var hexGrid = turf.hexGrid(bbox, 50, { units: 'meters' });
+                    var hexGridWithPoints = hexGrid.features.map(function (hexagon) {
+                        hexagon.properties.points = turf.within(points, hexagon).features.length;
+                        return hexagon;
+                    });
+                    var filteredHexGrid = hexGridWithPoints.filter(hexagon => hexagon.properties.points > 0);
+
+                    map.addSource('hexGrid', {
+                        type: 'geojson',
+                        data: {
+                            type: 'FeatureCollection',
+                            features: filteredHexGrid
+                        }
+                    });
+
+                    map.addLayer({
+                        'id': 'hexGrid-extrusion',
+                        'type': 'fill-extrusion',
+                        'source': 'hexGrid',
+                        'paint': {
+                            'fill-extrusion-height': ['*', ['get', 'points'], 20],
+                            'fill-extrusion-color': {
+                                property: 'points',
+                                stops: [
+                                    [5, '#fafa6e'],
+                                    [10, '#fcd940'],
+                                    [15, '#feb608'],
+                                    [20, '#ff9000'],
+                                    [25, '#ff6100'],
+                                    [30, '#ff0000']
+                                ]
+                            },
+                            'fill-extrusion-opacity': 0.9,
+                        },
+                        'layout': {
+                            'visibility': 'none' // Initially hide the layer
+                        }
+                    });
+
+                    map.on('mouseenter', 'hexGrid-extrusion', (e) => {
+                        // Change the cursor style as a UI indicator.
+                        map.getCanvas().style.cursor = 'pointer';
+
+                        // Extract the count of points within the hexbin.
+                        const count = e.features[0].properties.points;
+
+                        // Copy coordinates array and ensure it's properly formatted as [lng, lat].
+                        const coordinates = e.lngLat.wrap().toArray();
+
+                        // Create HTML content for the popup.
+                        const html = `<strong>Casualties:</strong> ${count}`;
+
+                        // Create a new instance of Popup
+                        const popup = new mapboxgl.Popup({ closeButton: false })
+                            .setLngLat(coordinates)
+                            .setHTML(html)
+                            .addTo(map);
+
+                        // Close the popup on mouseleave
+                        map.on('mouseleave', 'hexGrid-extrusion', () => {
+                            map.getCanvas().style.cursor = '';
+                            popup.remove();
+                        });
+                    });
+
+                    infoPoints.forEach((infoPoint, index) => {
+                        const marker = new mapboxgl.Marker()
+                            .setLngLat(infoPoint.coordinates)
+                            .addTo(map);
+
+                        marker.getElement().addEventListener('click', function () {
+                            // Show sidebar for the clicked marker
+                            if (infoPoint.name === 'Information 1') {
+                                sidebar.innerHTML = `
+                <h3>Everest Base Camp</h3>
+                <p> Welcome to Base Camp! This camp marks the bottom of Mt. Everest at 5,364m above sea level.</p>
+                        
+                <p>This "pop-up city" is situated on the rapidly thinning Khumbu Glacier. Due to unsafe conditions on the glacier (caused by our rapidly changing climate), Basecamp will be relocated to a new site in 2025 south of its current position.</p>
+                
+                <p><strong>Fun Facts:</p>
+                <ul class="info2-text">
+                    <li> About 40,000 people visit per year</li>
+                    <li>There is about 140,000 tons of waste on the Mountain</li>
+                    <li>Summit trips can cost up to $45,000.00</li>
+                    <li>240,000 litres of urine are deposited directly onto the Khumbu Glacier each year</li> 
+                </ul>
+                <img id="sidebar-image" src="./permit.png" alt="Permit" width="100" height="50"> 
+    
+            `;
+                                markerImage.style.display = 'block'; // Show image
+                            } else if (infoPoint.name === 'Information 2') {
+                                sidebar.innerHTML = `
+                <h3>The Trek</h3>
+                <p class = 'info-text'> As climbers progress along the hiking route on Mount Everest, they encounter several crucial camps and features. Camps I to IV, strategically positioned at increasing altitudes, serve as vital resting points and acclimatization hubs during the ascent. <br><br> Camps I and II offer relatively stable terrain for setting up tents and recuperating before tackling more challenging sections. Camp III, located at the foot of the notorious Lhotse Face, presents climbers with steep slopes and icy conditions. Camp IV, also known as the South Col Camp, marks the final base camp before the summit push and is situated at an altitude of around 7,900 meters. From here, climbers face the daunting Hillary Step, a steep rock and ice wall requiring technical skill and courage to ascend. Beyond the Hillary Step lies the South Summit, a prelude to the ultimate goal: the summit of Mount Everest.</p>
+                <img id="sidebar-image" src="./Camp1.jpeg" alt="Camp 1" width="100" height="45"> 
+            `;
+
+                                // Add Everest POI layer if required
+                                map.addSource('everestPoi', {
+                                    type: 'geojson',
+                                    data: './Everest_POI.geojson'
+                                });
+
+                                map.addLayer({
+                                    id: 'everestPoi',
+                                    type: 'symbol',
+                                    source: 'everestPoi',
+                                    layout: {
+                                        'icon-image': 'marker-15',
+                                        'text-field': ['get', 'Name'],
+                                        'text-font': ['Open Sans Semibold', 'Arial Unicode MS Bold'],
+                                        'text-offset': [0, 0.6],
+                                        'text-anchor': 'top'
+                                    }
+                                });
+
+                                // Add Hiking Route layer if required
+                                map.addSource('hikingRoute', {
+                                    type: 'geojson',
+                                    data: './Hiking_Route_Geo.geojson'
+                                });
+
+                                map.addLayer({
+                                    id: 'hikingRoute',
+                                    type: 'line',
+                                    source: 'hikingRoute',
+                                    paint: {
+                                        'line-color': '#007bff',
+                                        'line-width': 2
+                                    }
+                                });
+                            } else if (infoPoint.name === 'Information 3') {
+                                sidebar.innerHTML = `
+                <h3>Death on Everest</h3>
+                <p class= 'info-text'> Since 1921, when modern records began, over 330 people are known to have died while attempting to climb Everest. Around 200 are still on the mountain. Recovering their bodies is somewhere between impractical and impossible. The death rate on Mt. Everest has risen to over 14.1% in 2021.</p>
+                
+                <div class='session'>
+                        <p><strong>Casualties Between 1952-2024:</strong></p>
+                            <div class='row colors'>
+                            </div>
+                                <div class='row labels'>
+                                <div class='label'>5</div>
+                                <div class='label'>10</div>
+                                <div class='label'>15</div>
+                                <div class='label'>20</div>
+                                <div class='label'>25</div>
+                                <div class='label'>30</div>
+                            </div>
+                        </div>
+                        
+                <p><strong>Causes of Death:</strong></p>   
+                <img id="sidebar-image" src="./type_chart.png" alt="Death Types" width="100" height="50"> 
+                <p class= 'info-text'>Toggle over different features to learn more!</p>
+            `;
+                            } else if (infoPoint.name === 'Information 4') {
+                                sidebar.innerHTML = `
+                <h3>The Summit!</h3>
+                <p class="info-text"> Here we are at the highest point on earth! 60% of people who attempt the climb make it to the top (but unfortunetly not all make it back down). The percentage of deaths to successful attempts is around 4%. </p>
+                <p class="info-text"> Mount Everest has witnessed a surge in activity over the years, leading to overcrowding during climbing seasons. The mountain's popularity as the ultimate challenge has drawn adventurers from around the globe, resulting in overcrowding on routes and base camps. This congestion has led to delays, increased risks, and strained resources. Despite advancements in technology and mountaineering techniques, Everest remains a formidable and perilous undertaking, with the risk of avalanches, crevasses, altitude sickness, and extreme weather conditions ever-present. As a result, the mountain demands respect, careful planning, and experienced guidance to navigate its challenges safely.</p>
+                <img id="sidebar-image" src="./summit.webp" alt="Permit" width="100" height="50"> 
+                <p><strong>Fun Facts:</p>
+                <ul class="info2-text">
+                    <li> 8,848m above sea level</li>
+                    <li>Temperature at the summit ranges from -36°C  in the summer to -80°C in the winter</li>
+                    <li> On 29 May 1953, Edmund Hillary and Sherpa mountaineer Tenzing Norgay became the first climbers confirmed to have reached the summit of Mount Everest!</li> 
+                </ul>
+                <img id="sidebar-image" src="./first_climb.webp" alt="First Summit" width="100" height="50"> 
+            `;
+                            }
+
+                            sidebar.style.display = 'block';
+
+                            // Zoom to the marker's location if required
+                            if (infoPoint.showLayer) {
+                                // Show hexGrid-extrusion layer if required
+                                if (infoPoint.name === 'Information 3') {
+                                    map.setLayoutProperty('hexGrid-extrusion', 'visibility', 'visible');
+                                }
+
+                                // Zoom to the marker's location if it's Information 1 or 4
+                                if (infoPoint.name === 'Information 1' || infoPoint.name === 'Information 4') {
+                                    map.flyTo({
+                                        center: infoPoint.coordinates,
+                                        zoom: 15,
+                                        pitch: 0, // Set pitch to 0 for overhead view
+                                        bearing: 0
+                                    });
+                                }
+                            }
+                        });
+
+                    });
+                });
+        });
+
+        function resetMapView() {
+            // Hide the sidebar
+            sidebar.style.display = 'none';
+            markerImage.style.display = 'none'; // Hide image
+
+            // Reset the map view
+            map.flyTo({
+                center: [86.8809043, 27.9953304],
+                zoom: 13,
+                pitch: 75,
+                bearing: 100,
+                essential: true
+            });
+
+            // Hide hexGrid-extrusion layer
+            map.setLayoutProperty('hexGrid-extrusion', 'visibility', 'none');
+
+            // Remove Everest POI layer if present
+            if (map.getSource('everestPoi')) {
+                map.removeLayer('everestPoi');
+                map.removeSource('everestPoi');
+            }
+
+            // Remove Hiking Route layer if present
+            if (map.getSource('hikingRoute')) {
+                map.removeLayer('hikingRoute');
+                map.removeSource('hikingRoute');
+            }
+        }
+    </script>
+</body>
+
+</html>

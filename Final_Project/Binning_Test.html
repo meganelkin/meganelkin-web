@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset='utf-8' />
+    <title>Everest Over the Years</title>
+    <meta name='viewport' content='width=device-width, initial-scale=1' />
+    <script src='https://api.mapbox.com/mapbox-gl-js/v3.1.0/mapbox-gl.js'></script>
+    <link href='https://api.mapbox.com/mapbox-gl-js/v3.1.0/mapbox-gl.css' rel='stylesheet' />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
+    <script src='https://api.mapbox.com/mapbox.js/plugins/turf/v3.0.11/turf.min.js'></script>
+    <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
+
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+        }
+
+        #map {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 100%;
+        }
+
+        h1 {
+            font-size: 20px;
+            line-height: 30px;
+        }
+
+        h2 {
+            font-size: 14px;
+            line-height: 20px;
+            margin-bottom: 10px;
+        }
+
+        a {
+            text-decoration: none;
+            color: #2dc4b2;
+        }
+
+        #console {
+            position: absolute;
+            width: 240px;
+            margin: 10px;
+            padding: 10px 20px;
+            background-color: white;
+        }
+
+        .session {
+            margin-bottom: 20px;
+        }
+
+        .row {
+            height: 12px;
+            width: 100%;
+        }
+
+        .colors {
+            background: linear-gradient(to right, #fafa6e, #fcd134, #ffa400, #ff6e00, #ff6100, #ff0000);
+            margin-bottom: 5px;
+        }
+
+        .label {
+            width: 15%;
+            display: inline-block;
+            text-align: center;
+        }
+    </style>
+</head>
+
+<body>
+    <div id='map'></div>
+    <div id='console'>
+        <h1>Everest Over the Years</h1>
+        <p>Data from <a href="https://www.himalayandatabase.com/Online/peakdead.html"> 1950-2024</a></p>
+        <div class='session'>
+            <h2>Total Deaths</h2>
+            <div class='row colors'>
+            </div>
+            <div class='row labels'>
+                <div class='label'>5</div>
+                <div class='label'>10</div>
+                <div class='label'>15</div>
+                <div class='label'>20</div>
+                <div class='label'>25</div>
+                <div class='label'>30</div>
+            </div>
+            <div class='session' id='sliderbar'>
+                <h2>Year: <label id='active-hour'>1952</label></h2>
+                <input id='time-slider' class='row' type='range' min='1952' max='2024' step='1' value='1952' />
+            </div>
+        </div>
+    </div>
+    <script>
+        mapboxgl.accessToken = 'pk.eyJ1IjoibWFlbGtpbiIsImEiOiJja3BlamtjNnkwODJuMnVzMzZkaHYyN2M2In0._SJVPddIuR_dS8co5w2odw';
+
+        const map = new mapboxgl.Map({
+            container: 'map', 
+            style: 'mapbox://styles/maelkin/clu8wsdzz00bv01q578vv1gcz',
+            center: [86.8809043, 27.9953304], 
+            zoom: 13,
+            pitch: 75,
+            bearing: 100,
+        });
+
+
+        map.on('load', function () {
+            fetch('Death_New.geojson')
+                .then(response => response.json())
+                .then(data => {
+                    var points = data;
+                    var features = data.features;
+                    var bbox = turf.bbox({ type: 'FeatureCollection', features: features });
+                    var hexGrid = turf.hexGrid(bbox, 50, { units: 'meters' }); 
+                    var hexGridWithPoints = hexGrid.features.map(function (hexagon) {
+                        hexagon.properties.points = turf.within(points, hexagon).features.length;
+                        return hexagon;
+                    });
+                    var filteredHexGrid = hexGridWithPoints.filter(hexagon => hexagon.properties.points > 0);
+
+                    map.addSource('hexGrid', {
+                        type: 'geojson',
+                        data: {
+                            type: 'FeatureCollection',
+                            features: filteredHexGrid
+                        }
+                    });
+
+                    map.addLayer({
+                        'id': 'hexGrid-extrusion',
+                        'type': 'fill-extrusion',
+                        'source': 'hexGrid',
+                        'paint': {
+                            'fill-extrusion-height': ['*', ['get', 'points'], 20],
+                            'fill-extrusion-color': {
+                                property: 'points',
+                                stops: [
+                                    [5, '#fafa6e'],
+                                    [10, '#fcd940'],
+                                    [15, '#feb608'],
+                                    [20, '#ff9000'],
+                                    [25, '#ff6100'],
+                                    [30, '#ff0000']
+                                ]
+
+                            },
+                            'fill-extrusion-opacity': 0.9,
+                        }
+                    });
+                })
+        });
+
+
+    </script>
+</body>
+
+</html>
